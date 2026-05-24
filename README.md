@@ -27,7 +27,8 @@ CHEMAI PREDICT THE CURE
 ├── .gitignore
 ├── requirements.txt                # Python-зависимости
 ├── Results.txt                     # Результаты и метрики, дополняемые в процессе
-└── README.md                       # Документация проекта
+├── README.md                       # Документация проекта
+└── DPO Group 1 Presentation.pptx   # Презентация по проекту
 ```
 
 ---
