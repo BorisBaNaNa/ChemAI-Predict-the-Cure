@@ -1,62 +1,125 @@
-from preprocess_logic import preprocess_data
-from train_logic import check_submission_sanity, train_and_predict_ensemble
-import pandas as pd
-import numpy as np
 import os
+import pandas as pd
+
+from preprocess_logic import preprocess_data
+from train_logic import (
+    check_submission_sanity,
+    train_and_predict_ensemble,
+)
+
+# ============================================================
+# КОНСТАНТЫ
+# ============================================================
+
+TARGET_COLUMNS = ["IC50, mM", "CC50, mM", "SI"]
+
+TRAIN_FILENAME = "train.csv"
+TEST_FILENAME = "test.csv"
+
+OUTPUT_FILENAME = "submission_optimized_weights.csv"
+
+# ============================================================
+# MAIN
+# ============================================================
 
 if __name__ == "__main__":
+    # ========================================================
+    # ЗАГРУЗКА ДАННЫХ
+    # ========================================================
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    train = pd.read_csv(os.path.join(script_dir, "..", "data", "train.csv"))
-    test = pd.read_csv(os.path.join(script_dir, "..", "data", "test.csv"))
+    train_path = os.path.join(
+        script_dir,
+        "..",
+        "data",
+        TRAIN_FILENAME,
+    )
 
-    # Выбор режима работы: 'baseline' или 'advanced'
-    METHOD = "advanced"
+    test_path = os.path.join(
+        script_dir,
+        "..",
+        "data",
+        TEST_FILENAME,
+    )
+
+    train = pd.read_csv(train_path)
+    test = pd.read_csv(test_path)
+
+    # ========================================================
+    # ВЫДЕЛЕНИЕ ПРИЗНАКОВ
+    # ========================================================
 
     feature_cols = [
-        col
-        for col in train.columns
-        if col not in ["index", "IC50, mM", "CC50, mM", "SI"]
+        col for col in train.columns if col not in ["index", *TARGET_COLUMNS]
     ]
 
-    if METHOD == "advanced":
-        print(
-            f"[Data Eng] Выбран режим {METHOD}. Схлопываем противоречивые дубликаты..."
-        )
-        # Группируем по признакам и усредняем таргеты медианой, чтобы убрать биологический шум
-        train_aggregated = train.groupby(feature_cols, as_index=False).median()
+    # ========================================================
+    # ОБРАБОТКА ДУБЛИКАТОВ
+    # ========================================================
 
-        # ToDo: Возможна утечка?
-        # Пересчитываем строго математический SI для агрегированных строк
-        # train_aggregated["SI"] = train_aggregated["CC50, mM"] / (
-        #     train_aggregated["IC50, mM"] + 1e-8
-        # )
+    print("[Data Eng] Схлопывание противоречивых дубликатов...")
 
-        X_train_raw = train_aggregated[feature_cols]
-        y_train_raw = train_aggregated[["IC50, mM", "CC50, mM", "SI"]]
-    else:
-        print(f"[Data Eng] Выбран режим {METHOD}. Оставляем сырые данные.")
-        X_train_raw = train[feature_cols]
-        y_train_raw = train[["IC50, mM", "CC50, mM", "SI"]]
+    # В датасете могут существовать одинаковые молекулы
+    # с немного различающимися таргетами из-за биологического шума
+    # и вариативности лабораторных измерений.
+    #
+    # Группировка по признакам с медианой:
+    #     - уменьшает влияние шумных измерений
+    #     - делает train distribution стабильнее
+    #     - снижает вероятность переобучения на выбросах
+    train_aggregated = train.groupby(feature_cols, as_index=False).median()
+
+    # ========================================================
+    # РАЗДЕЛЕНИЕ FEATURES / TARGETS
+    # ========================================================
+
+    X_train_raw = train_aggregated[feature_cols]
+
+    y_train_raw = train_aggregated[TARGET_COLUMNS]
 
     X_test_raw = test[feature_cols]
 
-    X_tr_processed, X_te_processed = preprocess_data(
-        X_train_raw, X_test_raw, feature_cols, method=METHOD
+    # ========================================================
+    # ПРЕДОБРАБОТКА
+    # ========================================================
+
+    print("[Data Eng] Предобработка признаков...")
+
+    X_train_processed, X_test_processed = preprocess_data(
+        X_train_raw,
+        X_test_raw,
+        feature_cols,
     )
 
-    submission = train_and_predict_ensemble(X_tr_processed, y_train_raw, X_te_processed)
+    # ========================================================
+    # ОБУЧЕНИЕ МОДЕЛИ
+    # ========================================================
 
-    check_submission_sanity(submission, train)
+    print("[ML] Обучение ансамбля моделей...")
 
-    # Жесткий пост-процессинг SI по чистой формуле
-    # if METHOD == "advanced":
-    #     print(
-    #         "[Post-processing] Пересчет тест-таргета SI строго по формуле CC50 / IC50..."
-    #     )
-    #     submission["SI"] = submission["CC50"] / (submission["IC50"] + 1e-8)
-
-    submission.to_csv("submission_optimized_weights.csv", index=False)
-    print(
-        f"[Успех] Файл submission_optimized_weights.csv успешно сохранен (Режим: {METHOD})!"
+    submission = train_and_predict_ensemble(
+        X_train_processed,
+        y_train_raw,
+        X_test_processed,
     )
+
+    # ========================================================
+    # ДИАГНОСТИКА РЕЗУЛЬТАТОВ
+    # ========================================================
+
+    check_submission_sanity(
+        submission,
+        train,
+    )
+
+    # ========================================================
+    # СОХРАНЕНИЕ РЕЗУЛЬТАТА
+    # ========================================================
+
+    submission.to_csv(
+        OUTPUT_FILENAME,
+        index=False,
+    )
+
+    print(f"[Успех] Файл {OUTPUT_FILENAME} успешно сохранен!")
