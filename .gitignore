@@ -16,7 +16,6 @@ Thumbs.db
 data/
 *.csv
 *.xlsx
-*.txt
 
 # === ML Models & Cache ===
 # Скрываем сохраненные веса моделей и логи бустинга

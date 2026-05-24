@@ -1,0 +1,10 @@
+cat > requirements_minimal.txt << EOF
+numpy==2.4.6
+pandas==3.0.3
+scikit-learn==1.8.0
+catboost==1.2.10
+joblib==1.5.3
+EOF
+
+# Если нужно будет переустановить минимальный набор:
+pip install -r requirements_minimal.txt

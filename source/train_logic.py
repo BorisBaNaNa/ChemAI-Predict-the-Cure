@@ -8,10 +8,7 @@ from sklearn.model_selection import KFold
 
 warnings.filterwarnings("ignore")
 
-# ============================================================
 # КОНСТАНТЫ
-# ============================================================
-
 RANDOM_STATE = 42
 
 N_SPLITS = 5
@@ -26,10 +23,7 @@ EPSILON = 1e-8
 
 TARGET_COLUMNS = ["IC50", "CC50", "SI"]
 
-# ============================================================
-# ПАРАМЕТРЫ МОДЕЛЕЙ
-# ============================================================
-
+# Параметры моделей
 # Multi-output модель обучается сразу на всех таргетах,
 # что позволяет учитывать связь:
 # SI = CC50 / IC50
@@ -110,10 +104,7 @@ def train_and_predict_ensemble(
             y_train_fold = y_train_log.iloc[train_indices]
             y_validation_fold = y_train_log.iloc[validation_indices]
 
-            # ====================================================
-            # MULTI-OUTPUT МОДЕЛЬ
-            # ====================================================
-
+            # multi-output модель
             multi_model = CatBoostRegressor(
                 **PARAMS_MULTI,
                 random_seed=RANDOM_STATE,
@@ -123,10 +114,7 @@ def train_and_predict_ensemble(
 
             multi_predictions = multi_model.predict(X_validation_fold)
 
-            # ====================================================
-            # SINGLE-OUTPUT МОДЕЛИ
-            # ====================================================
-
+            # single-output модели
             single_predictions = []
 
             for target_index in range(len(TARGET_COLUMNS)):
@@ -173,13 +161,8 @@ def train_and_predict_ensemble(
             best_weight = weight_multi
             oof_predictions = temp_oof_predictions
 
-    # ============================================================
-    # ОТЧЁТ ПО КАЧЕСТВУ
-    # ============================================================
-
-    print("\n" + "=" * 60)
-    print(" МЕТРИКИ КАЧЕСТВА НА КРОСС-ВАЛИДАЦИИ")
-    print("=" * 60)
+    # Отчёт
+    print("\n МЕТРИКИ КАЧЕСТВА НА КРОСС-ВАЛИДАЦИИ")
 
     for target_index, target_name in enumerate(TARGET_COLUMNS):
 
@@ -193,13 +176,9 @@ def train_and_predict_ensemble(
         print(f"  • RMSE {target_name:4}: {target_rmse:.4f}")
 
     print(f"  --> Средний CV Score: {best_score:.4f}")
-    print(f"  --> Оптимальный вес multi-output: {best_weight:.2f}")
-    print("=" * 60 + "\n")
+    print(f"  --> Оптимальный вес multi-output: {best_weight:.2f}\n")
 
-    # ============================================================
-    # ФИНАЛЬНОЕ ОБУЧЕНИЕ
-    # ============================================================
-
+    # Финальное обучение
     print("[ML] Обучение финальных моделей")
 
     multi_model = CatBoostRegressor(
@@ -255,10 +234,7 @@ def train_and_predict_ensemble(
         + (1 - best_weight) * single_predictions
     )
 
-    # ============================================================
-    # ПОСТ-ПРОЦЕССИНГ
-    # ============================================================
-
+    # Постобработка предсказаний
     # Ограничение экстремальных выбросов.
     for target_index in range(len(TARGET_COLUMNS)):
 
@@ -320,9 +296,7 @@ def check_submission_sanity(
     submission_df: pd.DataFrame,
     train_df: pd.DataFrame,
 ):
-    print("\n" + "=" * 60)
-    print(" АНАЛИЗ ФИЗИЧЕСКОЙ АДЕКВАТНОСТИ ПРЕДСКАЗАНИЙ")
-    print("=" * 60)
+    print("\n АНАЛИЗ ФИЗИЧЕСКОЙ АДЕКВАТНОСТИ ПРЕДСКАЗАНИЙ")
 
     targets = {
         "IC50": "IC50, mM",
@@ -372,7 +346,5 @@ def check_submission_sanity(
 
     print(
         f"  • Корреляция SI с CC50/IC50: "
-        f"{correlation:.4f}"
+        f"{correlation:.4f}\n"
     )
-
-    print("=" * 60 + "\n")
