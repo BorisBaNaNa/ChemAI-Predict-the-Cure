@@ -16,6 +16,9 @@
   [Ссылка на просмотр видео](https://disk.yandex.ru/i/FxP_NByuz8FWzA)
 </details>
 
+## Результат на Kaggle
+
+<img width="1437" height="197" alt="image" src="https://github.com/user-attachments/assets/4e4aefba-dce6-4afd-8b37-58e35bc3fd75" />
 
 ## Описание проекта
 
